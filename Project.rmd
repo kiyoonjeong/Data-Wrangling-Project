@@ -1,0 +1,202 @@
+---
+title: "Project"
+author: "Kiyoon Jeong"
+date: "December 2, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rvest)
+library(stringr)
+library(choroplethr)
+
+setwd("C:/Users/Kiyoon Jeong/Desktop/wrangling_project")
+
+url <- "https://en.wikipedia.org/wiki/List_of_countries_by_suicide_rate"
+
+url_table <- url %>% read_html() %>% html_nodes("table") %>% .[[2]] %>% html_table(fill = TRUE)
+
+url_table$Country <-  str_replace(url_table$Country , "\\ \\([ a-z]+\\)" , "")
+
+url_table$Country <-  as.character(str_extract_all(url_table$Country , "([ A-z ]+)"))
+
+url_table$Country[51] <- "united states of america"
+
+url_table$Country <- tolower(url_table$Country)
+
+colnames(url_table)[2] <- "region"
+
+colnames(url_table)[3] <- "Both"
+
+## 1. Both
+
+df_country <- subset(url_table, select = c(region, Both))
+
+colnames(df_country)[2] <- "value"
+
+country_choropleth(df_country)
+
+## 2. Male
+
+df_country <- subset(url_table, select = c(region, Male))
+
+colnames(df_country)[2] <- "value"
+
+country_choropleth(df_country)
+
+## 3. Female
+
+df_country <- subset(url_table, select = c(region, Female))
+
+colnames(df_country)[2] <- "value"
+
+country_choropleth(df_country)
+
+```
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+df1 <- read.csv("AV_AN_WAGE_17112016232031509.csv")
+df2 <- read.csv("AVE_HRS_17112016230809134.csv")
+
+df <- inner_join(df1, df2, by = c("Country"="Country", "Time" = "Time"))
+
+df_select <- subset(df , select = c(Country, Time, Value.x , Value.y))
+
+colnames(df_select)[3] <- "Income"
+
+colnames(df_select)[4] <- "WorkHour"
+
+## Year vs Working hour
+
+df_select %>% ggplot(aes(x = Time, y = WorkHour , colour = Country)) + xlab("Yeaer") + ylab("Weekly Working Hour") + geom_line()
+
+## Year vs Income
+
+df_select %>% ggplot(aes(x = Time, y = Income , colour = Country)) + xlab("Year") + ylab("Income") + geom_line()
+
+```
+
+## shiny app
+
+```{r}
+
+library(shiny)
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("TimeInput", "Time", min = 2000, max = 2014, value = c(2000, 2014)),
+      selectInput("nameInput", "Choose a country:", choices = df_select$Country),
+    mainPanel(
+      plotOutput("main_plot"),
+      tableOutput("results")
+    )
+  ),
+  titlePanel("Working Hour versus Income")
+))
+server <- function(input, output, session) {
+  reduced_df <- reactive({
+    filter(
+      df_select, 
+      Country == input$nameInput, 
+      Time >= input$TimeInput[1] & Time <= input$TimeInput[2]
+    )
+  })
+  output$main_plot <- renderPlot({
+      ggplot(data = reduced_df(), 
+             aes(WorkHour, Income, colour = Country)) + 
+        geom_line() + ggtitle(input$nameInput)
+    
+  })
+  output$results <- renderTable({ 
+      reduced_df()
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+library(shiny)
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("TimeInput", "Time", min = 2000, max = 2014, value = c(2000, 2014)),
+      selectInput("nameInput", "Choose a country:", choices = df_select$Country),
+    mainPanel(
+      plotOutput(outputId = "main_plot", width = "500%"),
+      tableOutput("results")
+    )
+  ),
+  titlePanel("Working Hour versus Income")
+))
+server <- function(input, output, session) {
+  reduced_df <- reactive({
+    filter(
+      df_select, 
+      Country == input$nameInput, 
+      Time >= input$TimeInput[1] & Time <= input$TimeInput[2]
+    )
+  })
+  output$main_plot <- renderPlot({
+      ggplot(data = reduced_df(), 
+             aes(WorkHour, Income, colour = Country)) + 
+        geom_line() + ggtitle(input$nameInput)
+    
+  })
+  output$results <- renderTable({ 
+      reduced_df()
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+
+##ggplot
+
+```{r}
+
+df_select %>% ggplot(aes(x = WorkHour, y = Income , colour = Country)) + xlab("Weekly Working Hour") + ylab("Income") + geom_line()
+
+```
+
+##merge data
+
+```{r}
+
+df_select$Country <- tolower(df_select$Country)
+
+df_select$Country <- str_replace_all(df_select$Country , "korea" , "south korea")
+
+df_select1 <- df_select %>% group_by(Country) %>% summarise(avgIncome = mean(Income))
+
+df_select2 <- df_select %>% group_by(Country) %>% summarise(avgWorkHour = mean(WorkHour))
+
+df_select_fixed <- inner_join(df_select1 , df_select2 , by = c("Country" = "Country"))
+
+df_final <- inner_join(df_select_fixed, url_table , by = c("Country" = "region"))
+
+```
+
+##gather
+
+```{r}
+library(tidyverse)
+
+df_final <- gather(df_final, Both, Male, Female, key = "Sex" , value = "NumberOfSuicide")
+
+
+ggplot(df_final , aes(x = avgWorkHour , y = NumberOfSuicide, colour = Sex)) +xlab("Weekly Working Hour") + ylab("Number of Suicide") + geom_point() + geom_smooth()
+
+ggplot(df_final , aes(x = avgIncome , y = NumberOfSuicide , colour = Sex)) + xlab("Annual Income") + ylab("Number of Suicide") + geom_point() + geom_smooth()
+
+```
