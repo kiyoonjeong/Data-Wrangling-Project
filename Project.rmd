@@ -13,8 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(rvest)
 library(stringr)
 library(choroplethr)
-
-setwd("C:/Users/Kiyoon Jeong/Desktop/wrangling_project")
+library(choroplethrMaps)
 
 url <- "https://en.wikipedia.org/wiki/List_of_countries_by_suicide_rate"
 
@@ -32,29 +31,38 @@ colnames(url_table)[2] <- "region"
 
 colnames(url_table)[3] <- "Both"
 
+## write.csv(url_table, file = "Suicide_Rate_by_Country.csv")
+
 ## 1. Both
 
-df_country <- subset(url_table, select = c(region, Both))
+df_country1 <- subset(url_table, select = c(region, Both))
 
-colnames(df_country)[2] <- "value"
+colnames(df_country1)[2] <- "value"
 
-country_choropleth(df_country)
+country_choropleth(df_country1)
+
+## write.csv(df_country1, file = "Suicide_Rate_by_Country_Both_Sex.csv")
 
 ## 2. Male
 
-df_country <- subset(url_table, select = c(region, Male))
+df_country2 <- subset(url_table, select = c(region, Male))
 
-colnames(df_country)[2] <- "value"
+colnames(df_country2)[2] <- "value"
 
-country_choropleth(df_country)
+country_choropleth(df_country2)
+
+##write.csv(df_country2, file = "Suicide_Rate_by_Country_Male.csv")
 
 ## 3. Female
 
-df_country <- subset(url_table, select = c(region, Female))
+df_country3 <- subset(url_table, select = c(region, Female))
 
-colnames(df_country)[2] <- "value"
+colnames(df_country3)[2] <- "value"
 
-country_choropleth(df_country)
+country_choropleth(df_country3)
+
+##write.csv(df_country3, file = "Suicide_Rate_by_Country_Female.csv")
+
 
 ```
 
@@ -63,8 +71,9 @@ country_choropleth(df_country)
 ```{r}
 library(dplyr)
 library(ggplot2)
-df1 <- read.csv("AV_AN_WAGE_17112016232031509.csv")
-df2 <- read.csv("AVE_HRS_17112016230809134.csv")
+
+df1 <- read.csv("data/AV_AN_WAGE_17112016232031509.csv")
+df2 <- read.csv("data/AVE_HRS_17112016230809134.csv")
 
 df <- inner_join(df1, df2, by = c("Country"="Country", "Time" = "Time"))
 
@@ -74,56 +83,28 @@ colnames(df_select)[3] <- "Income"
 
 colnames(df_select)[4] <- "WorkHour"
 
+## write.csv(df_select, file = "AnnualIncome_WeeklyWorkHour.csv")
+
 ## Year vs Working hour
 
-df_select %>% ggplot(aes(x = Time, y = WorkHour , colour = Country)) + xlab("Yeaer") + ylab("Weekly Working Hour") + geom_line()
+df_select %>% ggplot(aes(x = Time, y = WorkHour , colour = Country)) + xlab("Year") + ylab("Weekly Working Hour") + geom_line()
+
+lm(data = df_select, WorkHour ~ Time)
+
+## During 15 years, the WorkingHour is reduced about 1 hour.
 
 ## Year vs Income
 
 df_select %>% ggplot(aes(x = Time, y = Income , colour = Country)) + xlab("Year") + ylab("Income") + geom_line()
 
+lm(data = df_select , Income ~ Time)
+
+## During 15 years, the Income increases about 5000$.
 ```
 
 ## shiny app
 
 ```{r}
-
-library(shiny)
-
-ui <- fluidPage(
-  sidebarLayout(
-    sidebarPanel(
-      sliderInput("TimeInput", "Time", min = 2000, max = 2014, value = c(2000, 2014)),
-      selectInput("nameInput", "Choose a country:", choices = df_select$Country),
-    mainPanel(
-      plotOutput("main_plot"),
-      tableOutput("results")
-    )
-  ),
-  titlePanel("Working Hour versus Income")
-))
-server <- function(input, output, session) {
-  reduced_df <- reactive({
-    filter(
-      df_select, 
-      Country == input$nameInput, 
-      Time >= input$TimeInput[1] & Time <= input$TimeInput[2]
-    )
-  })
-  output$main_plot <- renderPlot({
-      ggplot(data = reduced_df(), 
-             aes(WorkHour, Income, colour = Country)) + 
-        geom_line() + ggtitle(input$nameInput)
-    
-  })
-  output$results <- renderTable({ 
-      reduced_df()
-  })
-}
-
-shinyApp(ui = ui, server = server)
-
-```
 
 library(shiny)
 
@@ -160,12 +141,16 @@ server <- function(input, output, session) {
 
 shinyApp(ui = ui, server = server)
 
+```
+
 
 ##ggplot
 
 ```{r}
 
 df_select %>% ggplot(aes(x = WorkHour, y = Income , colour = Country)) + xlab("Weekly Working Hour") + ylab("Income") + geom_line()
+
+lm(data = df_select, Income ~ WorkHour)
 
 ```
 
