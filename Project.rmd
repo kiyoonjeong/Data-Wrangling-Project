@@ -184,4 +184,5 @@ ggplot(df_final , aes(x = avgWorkHour , y = NumberOfSuicide, colour = Sex)) +xla
 
 ggplot(df_final , aes(x = avgIncome , y = NumberOfSuicide , colour = Sex)) + xlab("Annual Income") + ylab("Number of Suicide") + geom_point() + geom_smooth()
 
+
 ```
