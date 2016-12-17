@@ -14,26 +14,44 @@ library(rvest)
 library(stringr)
 library(choroplethr)
 library(choroplethrMaps)
+```
 
+#My Project's topic is that annual income and working hour versus suicide Rate.
+
+#1. First, I will collect the data from 'Wikipedia', then make the choroplethmap to see the high-suicide rate countries.
+
+#* Suicide Rate(Choropleth)
+
+```{r choropleth}
+#Collect data from wikipedia
 url <- "https://en.wikipedia.org/wiki/List_of_countries_by_suicide_rate"
 
+#Choose the suicide Rate table
 url_table <- url %>% read_html() %>% html_nodes("table") %>% .[[2]] %>% html_table(fill = TRUE)
 
+#It needs to be tidy. First, remove the '(more info)'
 url_table$Country <-  str_replace(url_table$Country , "\\ \\([ a-z]+\\)" , "")
 
+#It has a uni-code error. So, extract the name of countries.
 url_table$Country <-  as.character(str_extract_all(url_table$Country , "([ A-z ]+)"))
 
+#Change 'United States' into 'united states of america'
 url_table$Country[51] <- "united states of america"
 
+#Choropleth use the lower letter of each country's name
 url_table$Country <- tolower(url_table$Country)
 
+#Change the colname "country" to "region"
 colnames(url_table)[2] <- "region"
 
+#change the colname "Both sex" to "Both"
 colnames(url_table)[3] <- "Both"
 
 ## write.csv(url_table, file = "Suicide_Rate_by_Country.csv")
 
-## 1. Both
+## Make the choropleth (male, female, both)
+
+##1. Both
 
 df_country1 <- subset(url_table, select = c(region, Both))
 
@@ -63,48 +81,76 @@ country_choropleth(df_country3)
 
 ##write.csv(df_country3, file = "Suicide_Rate_by_Country_Female.csv")
 
-
 ```
 
+As we can see, some Africa countries, United States, Russia, India, South Korea, Japan have a relatively high suicide Rate. Also, Male tends to do more suicide based on the scale table.
 
+#2. Now, I will collect the working hour and annual income data from OECD websites. Then, I will merge this two data and make the ggplot and shiny app to see the relavance between them.
 
-```{r}
+#*Merge data
+
+```{r merge data(1)}
 library(dplyr)
 library(ggplot2)
 
-df1 <- read.csv("data/AV_AN_WAGE_17112016232031509.csv")
-df2 <- read.csv("data/AVE_HRS_17112016230809134.csv")
+#OECD data, df1 is annual income data, and df2 is weekly average working hour. These are tidy dataset.
+df1 <- read.csv("Data/AV_AN_WAGE_17112016232031509.csv")
+df2 <- read.csv("Data/AVE_HRS_17112016230809134.csv")
 
+#Merge these two data
 df <- inner_join(df1, df2, by = c("Country"="Country", "Time" = "Time"))
 
+#Select the important variables
 df_select <- subset(df , select = c(Country, Time, Value.x , Value.y))
 
+#Change the column names
 colnames(df_select)[3] <- "Income"
-
 colnames(df_select)[4] <- "WorkHour"
 
 ## write.csv(df_select, file = "AnnualIncome_WeeklyWorkHour.csv")
-
-## Year vs Working hour
-
-df_select %>% ggplot(aes(x = Time, y = WorkHour , colour = Country)) + xlab("Year") + ylab("Weekly Working Hour") + geom_line()
-
-lm(data = df_select, WorkHour ~ Time)
-
-## During 15 years, the WorkingHour is reduced about 1 hour.
-
-## Year vs Income
-
-df_select %>% ggplot(aes(x = Time, y = Income , colour = Country)) + xlab("Year") + ylab("Income") + geom_line()
-
-lm(data = df_select , Income ~ Time)
-
-## During 15 years, the Income increases about 5000$.
 ```
 
-## shiny app
+#First, I plot the Year vs Working hour
 
-```{r}
+```{r ggplot(1)}
+df_select %>% ggplot(aes(x = Time, y = WorkHour , colour = Country)) + xlab("Year") + ylab("Weekly Working Hour") + geom_line()
+```
+
+Except some countries, they tends to go downward. To check the slope, I used the linear model.
+
+```{r linearmodel(1)}
+lm(data = df_select, WorkHour ~ Time)
+```
+
+During 15 years, the WorkingHour is reduced about 1 hour.
+
+#Now, I plot the Year vs Income
+
+```{r ggplot(2)}
+df_select %>% ggplot(aes(x = Time, y = Income , colour = Country)) + xlab("Year") + ylab("Income") + geom_line()
+```
+
+Except some countries, they tends to go upward. To check the slope, I used the linear model.
+
+```{r linearmodel(2)}
+lm(data = df_select , Income ~ Time)
+```
+
+During 15 years, the Income increases about 5000$.
+
+So, as the year past, we earn more and work less.
+
+#Now, I plot the WorkHour versus Income.
+
+```{r ggplot(3)}
+df_select %>% ggplot(aes(x = WorkHour, y = Income , colour = Country)) + xlab("Weekly Working Hour") + ylab("Income") + geom_line()
+```
+
+It is hard to see the relationship. And also each countries have year trending. So, first I will see the relationship in each countries by shiny app, and plot the dot graph instead.
+
+# shiny app
+
+```{r shiny app}
 
 library(shiny)
 
@@ -140,49 +186,63 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server)
-
 ```
 
+I made the slide input for year variables, and select input for name of countries that we can choose the countries more easily. I have a problem with the size of my plot. So, I adjusted the size by plotoutput. And also I used table.
 
-##ggplot
+So, if you look at each countries plot, you can tell that income and working hour has a negative relation. But, it is because of the year trend, which is that as the year past, income goes up, and working hour goes down. I need to show the overall trend.
 
-```{r}
+#Thus, I choose the geom_point() instead of geom_line(), and I didn't use the color.
+```{r ggplot(4)}
+df_select %>% ggplot(aes(x = WorkHour, y = Income , value = Country)) + xlab("Weekly Working Hour") + ylab("Income") + geom_point()
+```
 
-df_select %>% ggplot(aes(x = WorkHour, y = Income , colour = Country)) + xlab("Weekly Working Hour") + ylab("Income") + geom_line()
-
+There is no big relation, but generally, as the working hour going up, Income going down.
+I used the linear model to find the coefficient.
+```{r linearmodel(4)}
 lm(data = df_select, Income ~ WorkHour)
-
 ```
 
-##merge data
+So, it has negative relation between them.
 
-```{r}
+#3. Finally, I want to find out the relaion between the suicide rate and income, working hour. Thus, I will merge these three data, and then plot it.
 
+# *merge data
+```{r merge data(2)}
+# To merge the data, both of them should have same country names. So, I used lower letter in both dataset.
 df_select$Country <- tolower(df_select$Country)
 
+# I changed the 'korea' into 'south korea'
 df_select$Country <- str_replace_all(df_select$Country , "korea" , "south korea")
 
+# I wanted to use the average income as x-variable.
 df_select1 <- df_select %>% group_by(Country) %>% summarise(avgIncome = mean(Income))
 
+# Also, I wanted to use the average working hour as x-variable.
 df_select2 <- df_select %>% group_by(Country) %>% summarise(avgWorkHour = mean(WorkHour))
 
+# Join them. I will use the inner join to get an data which has both income and workhour values.
 df_select_fixed <- inner_join(df_select1 , df_select2 , by = c("Country" = "Country"))
 
+# Join them. I used the inner join to get an data which has both income/workhour values and suicide rate.
 df_final <- inner_join(df_select_fixed, url_table , by = c("Country" = "region"))
-
 ```
 
-##gather
+I will plot the suicide rate versus income/workhour, colored by sex. So, I will gather the Both, Male, Female columns first.
 
-```{r}
+# *Gather
+```{r gather}
 library(tidyverse)
-
 df_final <- gather(df_final, Both, Male, Female, key = "Sex" , value = "NumberOfSuicide")
+```
 
+Now, I plot these two ggplot.
 
+```{r final ggplot}
 ggplot(df_final , aes(x = avgWorkHour , y = NumberOfSuicide, colour = Sex)) +xlab("Weekly Working Hour") + ylab("Number of Suicide") + geom_point() + geom_smooth()
 
 ggplot(df_final , aes(x = avgIncome , y = NumberOfSuicide , colour = Sex)) + xlab("Annual Income") + ylab("Number of Suicide") + geom_point() + geom_smooth()
-
-
 ```
+
+I used the geom_smooth() to see the trend. In the working hour versus Suicide plot, it shows that there is no big relation between working hour and number of suicide. In the annual income versus suicide plot, it shows that the countries ,whose annual income is below 30000, have a negative relation between income and suicide rate. However, countries whose annual income is above 30000, have no big relation.
+
