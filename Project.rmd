@@ -29,23 +29,57 @@ url <- "https://en.wikipedia.org/wiki/List_of_countries_by_suicide_rate"
 #Choose the suicide Rate table
 url_table <- url %>% read_html() %>% html_nodes("table") %>% .[[2]] %>% html_table(fill = TRUE)
 
+#Remove NULL
+list = url_table[1]!= url_table[109,1]
+url_table = url_table[list,]
+
 #It needs to be tidy. First, remove the '(more info)'
-url_table$Country <-  str_replace(url_table$Country , "\\ \\([ a-z]+\\)" , "")
+url_table$Regions <-  str_replace(url_table$Regions , "\\ \\([ a-z]+\\)" , "")
 
 #It has a uni-code error. So, extract the name of countries.
-url_table$Country <-  as.character(str_extract_all(url_table$Country , "([ A-z ]+)"))
+url_table$Regions <-  as.character(str_extract_all(url_table$Regions , "([ A-z ]+)"))
 
-#Change 'United States' into 'united states of america'
-url_table$Country[51] <- "united states of america"
+##Change 'United States' into 'united states of america'
+#url_table$Regions[51] <- "united states of america"
 
 #Choropleth use the lower letter of each country's name
-url_table$Country <- tolower(url_table$Country)
+url_table$Regions <- tolower(url_table$Regions)
 
-#Change the colname "country" to "region"
+#Change some names of countries
+url_table[5,2] <- "ivory coast"
+
+url_table[49,2] <- "united states of america"
+
+url_table[88,2] <- "canada"
+
+url_table[97,2] <- "guinea bissau"
+
+url_table[100,2] <- "east timor"
+
+url_table[134,2] <- "macedonia"
+
+url_table[63,2] <- "republic of congo"
+
+url_table[60,2] <- "republic of serbia"
+
+url_table[178,2] <- "the bahamas"
+
+url_table[76,2] <- "united republic of tanzania"
+
+#Change the colname "Regions" to "region"
 colnames(url_table)[2] <- "region"
 
 #change the colname "Both sex" to "Both"
 colnames(url_table)[3] <- "Both"
+
+#change the colname and data type
+colnames(url_table)[5] <- "Male"
+
+url_table$Male <- as.numeric(url_table$Male)
+
+colnames(url_table)[7] <- "Female"
+
+url_table$Female <- as.numeric(url_table$Female)
 
 ## write.csv(url_table, file = "Suicide_Rate_by_Country.csv")
 
@@ -94,8 +128,8 @@ library(dplyr)
 library(ggplot2)
 
 #OECD data, df1 is annual income data, and df2 is weekly average working hour. These are tidy dataset.
-df1 <- read.csv("Data/AV_AN_WAGE_17112016232031509.csv")
-df2 <- read.csv("Data/AVE_HRS_17112016230809134.csv")
+df1 <- read.csv("./Data/AV_AN_WAGE_17112016232031509.csv")
+df2 <- read.csv("./Data/AVE_HRS_17112016230809134.csv")
 
 #Merge these two data
 df <- inner_join(df1, df2, by = c("Country"="Country", "Time" = "Time"))
